@@ -1,13 +1,10 @@
-# Multi-stage build para producción
-FROM python:3.11-slim as base
+# Multi-stage build para producción con ML preinstalado
+FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime as base
 
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
     gcc \
     build-essential \
-    libpq-dev \
-    libopenblas-dev \
-    libomp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

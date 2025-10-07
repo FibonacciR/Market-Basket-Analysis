@@ -3,8 +3,7 @@ fastapi
 uvicorn
 python-dotenv
 
-# Deep Learning y ML
-torch
+# ML (torch ya está en imagen base)
 lightgbm
 scikit-learn
 xgboost
@@ -12,23 +11,10 @@ xgboost
 # Procesamiento de datos
 pandas
 numpy
-polars
 
-# Visualización
-matplotlib
-seaborn
-plotly
+# Testing
+pytest
+requests
 
 # Utilidades
 tqdm
-
-# Otros
-psycopg2-binary  # PostgreSQL
-redis
-
-# Monitoreo
-wandb
-
-kaggle
-
-pytest
