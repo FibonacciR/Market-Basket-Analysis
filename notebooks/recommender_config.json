@@ -1,0 +1,13 @@
+{
+  "model_type": "ensemble",
+  "lgb_model_path": "baseline_lgb_model.txt",
+  "ensemble_weight": 0.6,
+  "feature_files": {
+    "user_features": "user_features.pkl",
+    "product_features": "product_features.pkl",
+    "user_product_features": "user_product_features.pkl"
+  },
+  "n_features": 25,
+  "catalog_coverage": 0.07649415222336292,
+  "avg_diversity": 8.7
+}

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Data & Models
+data/
+models/
+*.pkl
+*.h5
+*.pt
+*.txt
+*.csv
+*.tsv
+*.xlsx
+
+# Environment & Config
+.env
+config.yaml
+
+# Docker
+*.log
+docker-compose.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Others
+*.swp
+*.bak
