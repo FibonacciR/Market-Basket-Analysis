@@ -1,0 +1,34 @@
+# API y producción
+fastapi
+uvicorn
+python-dotenv
+
+# Deep Learning y ML
+torch
+lightgbm
+scikit-learn
+xgboost
+
+# Procesamiento de datos
+pandas
+numpy
+polars
+
+# Visualización
+matplotlib
+seaborn
+plotly
+
+# Utilidades
+tqdm
+
+# Otros
+psycopg2-binary  # PostgreSQL
+redis
+
+# Monitoreo
+wandb
+
+kaggle
+
+lightgbm
