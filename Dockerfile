@@ -19,7 +19,6 @@ RUN pip install gunicorn
 COPY src/ ./src/
 COPY data/ ./data/
 RUN mkdir -p ./models
-COPY models/.keep ./models/
 
 # Crear usuario no-root para seguridad
 RUN useradd --create-home --shell /bin/bash app \
