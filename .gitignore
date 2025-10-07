@@ -34,3 +34,4 @@ Thumbs.db
 # Others
 *.swp
 *.bak
+!requirements.txt
