@@ -18,6 +18,7 @@ models/
 *.csv
 *.tsv
 *.xlsx
+!models/.keep
 
 # Environment & Config
 .env
