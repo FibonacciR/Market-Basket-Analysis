@@ -4,8 +4,7 @@ from typing import List
 import os
 from src.predict import (
     load_ncf_model, predict_ncf,
-    load_lgb_model, predict_lgb,
-    load_association_rules, predict_association
+    load_lgb_model, predict_lgb
 )
 from src.utils import load_product_names
 
@@ -19,7 +18,7 @@ class PredictRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "API de recomendaciones activa. Usa /predict/ncf, /predict/lgb o /predict/association para obtener recomendaciones."}
+    return {"message": "API de recomendaciones activa. Usa /predict/ncf o /predict/lgb para obtener recomendaciones."}
 
 # Endpoint para NCF
 @app.post("/predict/ncf")
@@ -64,16 +63,28 @@ def api_predict_ncf(request: PredictRequest):
         }
     }
 
-# Endpoint para Association Rules
-@app.post("/predict/association")
-def api_predict_association(request: PredictRequest):
-    rules = load_association_rules()
-    if rules is None:
-        return {"error": "Association Rules model not found."}
-    recs = predict_association(rules, request.user_id, request.basket)
+# Endpoint para LightGBM
+@app.post("/predict/lgb")
+def api_predict_lgb(request: PredictRequest):
+    model = load_lgb_model()
+    if model is None:
+        return {"error": "LightGBM model not found."}
+    res = predict_lgb(model, request.user_id, request.basket)
+    if isinstance(res, dict) and 'error' in res:
+        return {"model": "LightGBM", "user_id": request.user_id, "basket": request.basket, "recommendation": res}
+
+    # Usar la misma estructura que NCF
+    scores_aligned = res.get('scores', [])
+    recommended = res.get('recommended', [])
+    recommended_ids = res.get('recommended_ids', [])
+
     return {
-        "model": "AssociationRules",
+        "model": "LightGBM",
         "user_id": request.user_id,
         "basket": request.basket,
-        "recommendation": recs
+        "recommendation": {
+            "scores": scores_aligned,
+            "recommended": recommended,
+            "recommended_ids": recommended_ids
+        }
     }
