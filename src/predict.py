@@ -12,11 +12,11 @@ MODELS_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
 # ============================================================
 
 def load_ncf_model():
-    path = os.path.join(MODELS_DIR, 'best_ncf_model.pt')
+    path = os.path.join(MODELS_DIR, 'mba-api', 'best_ncf_model.pt')
     if not os.path.exists(path):
         return None
 
-    checkpoint = torch.load(path, map_location=torch.device('cpu'))
+    checkpoint = torch.load(path, map_location=torch.device('cpu'), weights_only=False)
     from src.model import NCF
 
     num_users = 131209
@@ -119,7 +119,7 @@ def predict_ncf(model, user_id, basket, top_k: int = 10, num_products_default: i
 # ============================================================
 
 def load_lgb_model():
-    path = os.path.join(MODELS_DIR, 'baseline_lgb_model.txt')
+    path = os.path.join(MODELS_DIR, 'mba-api', 'baseline_lgb_model.txt')
     print(f"Intentando cargar modelo LightGBM desde: {path}")
     print(f"¿Existe el archivo?: {os.path.exists(path)}")
     if not os.path.exists(path):

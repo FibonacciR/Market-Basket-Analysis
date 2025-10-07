@@ -1,11 +1,16 @@
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List
 import os
+from google.cloud import storage
 import time
 import logging
 import json
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 from src.predict import (
     load_ncf_model, predict_ncf,
     load_lgb_model, predict_lgb,
@@ -16,6 +21,42 @@ from src.utils import load_product_names
 app = FastAPI(title="Market Basket Recommendation API",
               description="API para generar recomendaciones de productos usando modelos ML y DL",
               version="1.0.0")
+# ...existing endpoints...
+
+# Endpoint para descargar modelos desde GCS
+@app.post("/download-models")
+def download_models():
+    try:
+        GCS_BUCKET = os.getenv("GCS_BUCKET_NAME", "models_dl")
+        GCS_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "storage/gcs-key.json")
+        MODELS = [
+            "mba-api/baseline_lgb_model.txt",
+            "mba-api/best_ncf_model.pt"
+        ]
+        MODELS_DIR = os.getenv("MODELS_DIR", "models")
+        os.makedirs(MODELS_DIR, exist_ok=True)
+        storage_client = storage.Client.from_service_account_json(GCS_CREDENTIALS)
+        bucket = storage_client.bucket(GCS_BUCKET)
+        results = []
+        for model_name in MODELS:
+            try:
+                blob = bucket.blob(model_name)
+                dest_path = os.path.join(MODELS_DIR, model_name)
+                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                blob.download_to_filename(dest_path)
+                results.append({"model": model_name, "status": "ok"})
+            except Exception as e:
+                results.append({"model": model_name, "status": "error", "detail": str(e)})
+        success_count = sum(1 for r in results if r["status"] == "ok")
+        error_count = sum(1 for r in results if r["status"] == "error")
+        message = f"Download finished: {success_count} models OK, {error_count} errors."
+        if error_count == 0:
+            message += " All models were downloaded successfully."
+        else:
+            message += " Some models could not be downloaded."
+        return JSONResponse(content={"message": message, "results": results})
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 # Configurar logging estructurado
 logging.basicConfig(
