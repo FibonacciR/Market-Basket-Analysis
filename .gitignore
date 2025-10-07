@@ -35,4 +35,5 @@ Thumbs.db
 # Others
 *.swp
 *.bak
+test_docker_creds.sh
 !requirements.txt
