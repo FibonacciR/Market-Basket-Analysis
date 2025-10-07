@@ -1,0 +1,17 @@
+# Archivos a ignorar en build de Docker
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.gitignore
+README.md
+.vscode/
+.pytest_cache/
+notebooks/
+scripts/
+tests/
+venv/
+.env
+*.log
+models_2/

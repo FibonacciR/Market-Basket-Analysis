@@ -2,15 +2,46 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 import os
+import time
+import logging
+import json
+from datetime import datetime
 from src.predict import (
     load_ncf_model, predict_ncf,
-    load_lgb_model, predict_lgb
+    load_lgb_model, predict_lgb,
+    load_association_rules, predict_association
 )
 from src.utils import load_product_names
 
 app = FastAPI(title="Market Basket Recommendation API",
               description="API para generar recomendaciones de productos usando modelos ML y DL",
               version="1.0.0")
+
+# Configurar logging estructurado
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
+
+def log_structured(level: str, message: str, **kwargs):
+    log_data = {
+        "timestamp": datetime.now().isoformat(),
+        "level": level,
+        "message": message,
+        **kwargs
+    }
+    logger.info(json.dumps(log_data))
+
+# Métricas simples en memoria
+metrics = {
+    "requests_total": 0,
+    "requests_ncf": 0,
+    "requests_association": 0,
+    "errors": 0,
+    "start_time": time.time()
+}
 
 class PredictRequest(BaseModel):
     user_id: int
@@ -20,13 +51,65 @@ class PredictRequest(BaseModel):
 def root():
     return {"message": "API de recomendaciones activa. Usa /predict/ncf o /predict/lgb para obtener recomendaciones."}
 
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "uptime_seconds": int(time.time() - metrics["start_time"])
+    }
+
+@app.get("/metrics")
+def get_metrics():
+    return {
+        "requests_total": metrics["requests_total"],
+        "requests_ncf": metrics["requests_ncf"], 
+        "requests_association": metrics["requests_association"],
+        "errors": metrics["errors"],
+        "uptime_seconds": int(time.time() - metrics["start_time"])
+    }
+
+@app.post("/reload-models")
+def reload_models():
+    try:
+        # Limpiar cache de load_product_names
+        from src.utils import load_product_names
+        load_product_names.cache_clear()
+        
+        # Forzar recarga en próxima llamada
+        log_structured("INFO", "Models cache cleared successfully")
+        
+        return {
+            "status": "success",
+            "message": "Model caches cleared. Models will be reloaded on next request.",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        log_structured("ERROR", "Failed to reload models", error=str(e))
+        return {
+            "status": "error", 
+            "message": f"Failed to reload models: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+
 # Endpoint para NCF
 @app.post("/predict/ncf")
 def api_predict_ncf(request: PredictRequest):
+    start_time = time.time()
+    metrics["requests_total"] += 1
+    metrics["requests_ncf"] += 1
+    
+    log_structured("INFO", "NCF prediction request", 
+                  user_id=request.user_id, basket_size=len(request.basket))
+    
     model = load_ncf_model()
     if model is None:
+        metrics["errors"] += 1
+        log_structured("ERROR", "NCF model not found", user_id=request.user_id)
         return {"error": "NCF model not found."}
     if isinstance(model, dict):
+        metrics["errors"] += 1
+        log_structured("ERROR", "NCF model is dict", user_id=request.user_id)
         return {
             "model": "NCF",
             "user_id": request.user_id,
@@ -36,10 +119,18 @@ def api_predict_ncf(request: PredictRequest):
 
     res = predict_ncf(model, request.user_id, request.basket, top_k=10)
     if isinstance(res, dict) and 'error' in res:
+        metrics["errors"] += 1
+        log_structured("ERROR", "NCF prediction failed", user_id=request.user_id, error=res.get('error'))
         return {"model": "NCF", "user_id": request.user_id, "basket": request.basket, "recommendation": res}
 
     input_scores = res.get('input_scores', [])
     recommended = res.get('recommended', [])
+
+    # Log successful response
+    duration = time.time() - start_time
+    log_structured("INFO", "NCF prediction completed", 
+                  user_id=request.user_id, recommendations=len(recommended), 
+                  duration_ms=int(duration * 1000))
 
     product_names = load_product_names()
     scores_aligned = []
