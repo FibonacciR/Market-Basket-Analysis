@@ -39,3 +39,4 @@ test_docker_creds.sh
 !requirements.txt
 storage/gcs-key.json
 
+storage/gcs-key.json
