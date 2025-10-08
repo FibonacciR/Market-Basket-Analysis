@@ -1,3 +1,12 @@
+import os
+
+# Crear el folder 'storage' y el archivo de credenciales si existe la variable de entorno
+os.makedirs("storage", exist_ok=True)
+gcs_key_env = os.getenv("GCS_KEY_JSON")
+gcs_key_path = "storage/gcs-key.json"
+if gcs_key_env and not os.path.exists(gcs_key_path):
+    with open(gcs_key_path, "w") as f:
+        f.write(gcs_key_env)
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
