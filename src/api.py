@@ -68,8 +68,16 @@ def download_models():
             try:
                 blob = bucket.blob(item["source"])
                 dest_dir = os.getenv("MODELS_DIR", item["dest_dir"]) if item["dest_dir"] == "models" else item["dest_dir"]
-                filename = os.path.basename(item["source"])
-                dest_path = os.path.join(dest_dir, filename)
+                
+                # Preserve the original directory structure for models
+                if item["dest_dir"] == "models":
+                    dest_path = os.path.join(dest_dir, item["source"])  # Keep mba-api/ structure
+                else:
+                    filename = os.path.basename(item["source"])
+                    dest_path = os.path.join(dest_dir, filename)
+                
+                # Create subdirectories if needed
+                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                 
                 blob.download_to_filename(dest_path)
                 results.append({"file": item["source"], "destination": dest_path, "status": "ok"})
@@ -83,6 +91,18 @@ def download_models():
             message += " All files were downloaded successfully."
         else:
             message += " Some files could not be downloaded."
+            
+        # Auto-reload models cache after successful download
+        if success_count > 0:
+            try:
+                from src.utils import load_product_names
+                load_product_names.cache_clear()
+                message += " Model caches cleared automatically."
+                log_structured("INFO", "Models cache auto-cleared after download", files_downloaded=success_count)
+            except Exception as cache_error:
+                log_structured("WARNING", "Failed to auto-clear cache after download", error=str(cache_error))
+                message += f" Warning: Cache clear failed - {str(cache_error)}"
+        
         return JSONResponse(content={"message": message, "results": results})
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
