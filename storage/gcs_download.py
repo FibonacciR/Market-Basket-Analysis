@@ -1,8 +1,17 @@
 
 # storage/gcs_download.py 
 
+
 import os
 from google.cloud import storage
+
+# Crear el archivo de credenciales si existe la variable de entorno
+gcs_key_env = os.getenv("GCS_KEY_JSON")
+gcs_key_path = "storage/gcs-key.json"
+if gcs_key_env and not os.path.exists(gcs_key_path):
+    os.makedirs(os.path.dirname(gcs_key_path), exist_ok=True)
+    with open(gcs_key_path, "w") as f:
+        f.write(gcs_key_env)
 
 # Configuración desde variables de entorno
 GCS_BUCKET = os.getenv("GCS_BUCKET_NAME", "models_dl")
