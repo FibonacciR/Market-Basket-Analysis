@@ -37,37 +37,52 @@ app = FastAPI(title="Market Basket Recommendation API",
               version="1.0.0")
 # ...existing endpoints...
 
-# Endpoint para descargar modelos desde GCS
 @app.post("/download-models")
 def download_models():
+    """
+    Download ML models and datasets from external Cloud Storage.
+    Usage: POST /download-models - No parameters required.
+    Downloads: NCF model, LightGBM model, products.csv to local directories.
+    """
     try:
         GCS_BUCKET = os.getenv("GCS_BUCKET_NAME", "models_dl")
         GCS_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "storage/gcs-key.json")
-        MODELS = [
-            "mba-api/baseline_lgb_model.txt",
-            "mba-api/best_ncf_model.pt"
+        
+        # Lista de archivos para descargar (modelos + datos)
+        FILES_TO_DOWNLOAD = [
+            {"source": "mba-api/baseline_lgb_model.txt", "dest_dir": "models"},
+            {"source": "mba-api/best_ncf_model.pt", "dest_dir": "models"},
+            {"source": "datasets/products.csv", "dest_dir": "data"}
         ]
-        MODELS_DIR = os.getenv("MODELS_DIR", "models")
-        os.makedirs(MODELS_DIR, exist_ok=True)
+        
+        # Crear directorios necesarios
+        for item in FILES_TO_DOWNLOAD:
+            dest_dir = os.getenv("MODELS_DIR", item["dest_dir"]) if item["dest_dir"] == "models" else item["dest_dir"]
+            os.makedirs(dest_dir, exist_ok=True)
+        
         storage_client = storage.Client.from_service_account_json(GCS_CREDENTIALS)
         bucket = storage_client.bucket(GCS_BUCKET)
         results = []
-        for model_name in MODELS:
+        
+        for item in FILES_TO_DOWNLOAD:
             try:
-                blob = bucket.blob(model_name)
-                dest_path = os.path.join(MODELS_DIR, model_name)
-                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                blob = bucket.blob(item["source"])
+                dest_dir = os.getenv("MODELS_DIR", item["dest_dir"]) if item["dest_dir"] == "models" else item["dest_dir"]
+                filename = os.path.basename(item["source"])
+                dest_path = os.path.join(dest_dir, filename)
+                
                 blob.download_to_filename(dest_path)
-                results.append({"model": model_name, "status": "ok"})
+                results.append({"file": item["source"], "destination": dest_path, "status": "ok"})
             except Exception as e:
-                results.append({"model": model_name, "status": "error", "detail": str(e)})
+                results.append({"file": item["source"], "status": "error", "detail": str(e)})
+        
         success_count = sum(1 for r in results if r["status"] == "ok")
         error_count = sum(1 for r in results if r["status"] == "error")
-        message = f"Download finished: {success_count} models OK, {error_count} errors."
+        message = f"Download finished: {success_count} files OK, {error_count} errors."
         if error_count == 0:
-            message += " All models were downloaded successfully."
+            message += " All files were downloaded successfully."
         else:
-            message += " Some models could not be downloaded."
+            message += " Some files could not be downloaded."
         return JSONResponse(content={"message": message, "results": results})
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
@@ -104,10 +119,19 @@ class PredictRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "API de recomendaciones activa. Usa /predict/ncf o /predict/lgb para obtener recomendaciones."}
+    """
+    API welcome endpoint - provides basic information about available services.
+    Usage: GET / - No parameters required.
+    """
+    return {"message": "Market Basket API is active. Use /predict/ncf or /predict/lgb for recommendations."}
 
 @app.get("/health")
 def health():
+    """
+    Health check endpoint - returns API status and uptime.
+    Usage: GET /health - No parameters required.
+    Returns: status, timestamp, uptime in seconds.
+    """
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
@@ -116,6 +140,11 @@ def health():
 
 @app.get("/metrics")
 def get_metrics():
+    """
+    API metrics endpoint - returns usage statistics and performance data.
+    Usage: GET /metrics - No parameters required.
+    Returns: request counts, error counts, uptime.
+    """
     return {
         "requests_total": metrics["requests_total"],
         "requests_ncf": metrics["requests_ncf"], 
@@ -126,6 +155,11 @@ def get_metrics():
 
 @app.post("/reload-models")
 def reload_models():
+    """
+    Clear model caches to force reload on next prediction request.
+    Usage: POST /reload-models - No parameters required.
+    Useful after downloading new models or updating configurations.
+    """
     try:
         # Limpiar cache de load_product_names
         from src.utils import load_product_names
@@ -147,9 +181,13 @@ def reload_models():
             "timestamp": datetime.now().isoformat()
         }
 
-# Endpoint para NCF
 @app.post("/predict/ncf")
 def api_predict_ncf(request: PredictRequest):
+    """
+    Neural Collaborative Filtering predictions for market basket analysis.
+    Usage: POST /predict/ncf with JSON body: {"user_id": int, "basket": [product_ids]}
+    Returns: top 10 product recommendations with scores and product names.
+    """
     start_time = time.time()
     metrics["requests_total"] += 1
     metrics["requests_ncf"] += 1
@@ -209,9 +247,13 @@ def api_predict_ncf(request: PredictRequest):
         }
     }
 
-# Endpoint para LightGBM
 @app.post("/predict/lgb")
 def api_predict_lgb(request: PredictRequest):
+    """
+    LightGBM gradient boosting predictions for market basket analysis.
+    Usage: POST /predict/lgb with JSON body: {"user_id": int, "basket": [product_ids]}
+    Returns: product recommendations with probability scores and product names.
+    """
     model = load_lgb_model()
     if model is None:
         return {"error": "LightGBM model not found."}
